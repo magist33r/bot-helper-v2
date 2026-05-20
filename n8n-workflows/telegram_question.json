@@ -463,7 +463,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"query_embedding\": $json.data[0].embedding, \"match_threshold\": 0.30, \"match_count\": 3 } }}",
+        "jsonBody": "={{ { \"query_embedding\": $('OpenAI Embeddings').item.json.data[0].embedding, \"match_threshold\": 0.30, \"match_count\": 3 } }}",
         "options": {
           "timeout": 60000
         }
