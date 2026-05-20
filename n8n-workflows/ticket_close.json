@@ -1,0 +1,212 @@
+{
+  "name": "03 Ticket Close Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "close-ticket",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "close-ticket-webhook",
+      "name": "Webhook - Close Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "close-ticket"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/tickets?id=eq.' + $json.body.ticket_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"status\": \"closed\", \"closed_at\": new Date().toISOString() } }}",
+        "options": {}
+      },
+      "id": "supabase-close-ticket",
+      "name": "Supabase Update ticket closed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap((item) => Array.isArray(item.json) ? item.json : [item.json]);\nconst ticket = rows.find((row) => row && row.id !== undefined);\nif (!ticket) {\n  throw new Error('Ticket update did not return a row. Check ticket_id and Supabase permissions.');\n}\nreturn [{ json: ticket }];"
+      },
+      "id": "normalize-closed-ticket",
+      "name": "Normalize Closed Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should-notify",
+              "leftValue": "={{ String($('Webhook - Close Ticket').item.json.body.notify || 'false') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-notify-user",
+      "name": "IF - Notify User",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_user_id }}",
+        "text": "={{ $('Webhook - Close Ticket').item.json.body.message || 'Ваш тикет #' + $json.id + ' закрыт поддержкой.' }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-send-close-notice",
+      "name": "Telegram Send - Close Notice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        -120
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-api",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { ok: true, ticket_id: row.id, status: row.status, closed_at: row.closed_at } }];"
+      },
+      "id": "close-ticket-response",
+      "name": "Close Ticket Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Close Ticket": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update ticket closed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Update ticket closed": {
+      "main": [
+        [
+          {
+            "node": "Normalize Closed Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Closed Ticket": {
+      "main": [
+        [
+          {
+            "node": "IF - Notify User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Notify User": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send - Close Notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Close Ticket Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Send - Close Notice": {
+      "main": [
+        [
+          {
+            "node": "Close Ticket Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "ticket-close-v1"
+}

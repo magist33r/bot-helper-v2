@@ -1,0 +1,974 @@
+{
+  "name": "01 Telegram Support RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-question",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "telegram-trigger-main",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst update = root.body && typeof root.body === 'object' ? root.body : root;\nconst cb = update.callback_query;\nconst msg = cb?.message || update.message || {};\nconst from = cb?.from || update.message?.from || {};\nconst chat = msg.chat || {};\nconst data = String(cb?.data || '');\nlet callbackAction = '';\nlet pendingLogId = null;\nif (data.startsWith('support_yes:')) { callbackAction = 'yes'; pendingLogId = Number(data.split(':')[1]); }\nif (data.startsWith('support_no:')) { callbackAction = 'no'; pendingLogId = Number(data.split(':')[1]); }\nconst question = String(update.message?.text || '').trim();\nreturn [{ json: { update_type: cb ? 'callback_query' : 'message', is_callback: Boolean(cb), callback_action: callbackAction, pending_log_id: pendingLogId, chat_id: chat.id || 0, message_id: msg.message_id || 0, user_id: from.id || 0, username: from.username || '', question, has_text: Boolean(question), is_start: /^\\/start(?:\\s|$)/i.test(question) } }];"
+      },
+      "id": "route-telegram-update",
+      "name": "Route Telegram Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-callback",
+              "leftValue": "={{ String($json.is_callback) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-callback",
+      "name": "IF - Callback Query",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-callback-yes",
+              "leftValue": "={{ $json.callback_action }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-callback-yes",
+      "name": "IF - Callback Yes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log?id=eq.' + $('Route Telegram Update').item.json.pending_log_id + '&select=id,telegram_user_id,question' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-get-pending-log",
+      "name": "Supabase Get Pending qa_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst row = rows[0];\nif (!row?.id || !row?.question) throw new Error('Pending qa_log row not found.');\nreturn [{ json: row }];"
+      },
+      "id": "normalize-pending-log",
+      "name": "Normalize Pending qa_log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/tickets' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"telegram_user_id\": $('Route Telegram Update').item.json.user_id, \"username\": $('Route Telegram Update').item.json.username, \"question\": $json.question, \"status\": \"open\" } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-insert-ticket-confirmed",
+      "name": "Supabase Insert ticket - confirmed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst ticket = rows[0];\nif (!ticket?.id) throw new Error('Ticket insert did not return id.');\nreturn [{ json: ticket }];"
+      },
+      "id": "normalize-confirmed-ticket",
+      "name": "Normalize Confirmed Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log?id=eq.' + $('Route Telegram Update').item.json.pending_log_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"answer\": 'ticket_created:#' + $('Normalize Confirmed Ticket').item.json.id } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-update-qalog-ticket-created",
+      "name": "Supabase Update qa_log - ticket created",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2060,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: 'Ваше сообщение передано в поддержку. Номер тикета #' + $('Normalize Confirmed Ticket').item.json.id + '. Ожидайте ответа.' } }];"
+      },
+      "id": "response-ticket-submitted",
+      "name": "Response - Ticket Submitted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2580,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-callback-no",
+              "leftValue": "={{ $json.callback_action }}",
+              "rightValue": "no",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-callback-no",
+      "name": "IF - Callback No",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log?id=eq.' + $('Route Telegram Update').item.json.pending_log_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"answer\": \"ticket_declined_by_user\" } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-update-qalog-ticket-declined",
+      "name": "Supabase Update qa_log - ticket declined",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: 'Хорошо, тикет не создаю. Попробуйте переформулировать вопрос или уточнить детали.' } }];"
+      },
+      "id": "response-ticket-declined",
+      "name": "Response - Ticket Declined",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-start",
+              "leftValue": "={{ String($json.is_start) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-start",
+      "name": "IF - /start",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: 'Привет! Я саппорт-бот SWAGA. Задай вопрос по VIP, оплате, серверам или правилам — я попробую ответить по базе знаний. Если точного ответа нет, предложу передать вопрос поддержке.' } }];"
+      },
+      "id": "response-welcome",
+      "name": "Response - Welcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-has-text",
+              "leftValue": "={{ String($json.has_text) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-text",
+      "name": "IF - Has Text",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/$/, '') + '/embeddings' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"text-embedding-3-small\", \"input\": String($('Route Telegram Update').item.json.question || '').replace(/ВИП|вип/g, 'VIP') } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "openai-embedding-question",
+      "name": "OpenAI Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/match_documents' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"query_embedding\": $json.data[0].embedding, \"match_threshold\": 0.30, \"match_count\": 3 } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-rpc-match-documents",
+      "name": "Supabase RPC - match_documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        280
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nlet matches = [];\nif (inputItems.length === 1 && Array.isArray(inputItems[0].json)) matches = inputItems[0].json;\nelse matches = inputItems.map(item => item.json).filter(item => item && item.id !== undefined && item.content);\nreturn [{ json: { length: matches.length, matches, top_similarity: matches[0]?.similarity ?? null, context: matches.map((m, index) => `[chunk ${index + 1}, similarity=${Number(m.similarity || 0).toFixed(4)}]\\n${m.content}`).join('\\n\\n---\\n\\n') } }];"
+      },
+      "id": "normalize-matches",
+      "name": "Normalize Matches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-found-relevant",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-found-relevant",
+      "name": "IF - Found Relevant Documents",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/$/, '') + '/chat/completions' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"gpt-4o-mini\", \"temperature\": 0.2, \"messages\": [ { \"role\": \"system\", \"content\": \"Ты саппорт-агент. Отвечай ТОЛЬКО на основе контекста ниже. Если в контексте нет ответа — скажи: 'У меня нет точной информации по этому вопросу, передаю в поддержку'. Контекст:\\n\" + $('Normalize Matches').item.json.context }, { \"role\": \"user\", \"content\": $('Route Telegram Update').item.json.question } ] } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "openai-chat-completion",
+      "name": "OpenAI Chat Completions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"telegram_user_id\": $('Route Telegram Update').item.json.user_id, \"question\": $('Route Telegram Update').item.json.question, \"answer\": $('OpenAI Chat Completions').item.json.choices[0].message.content, \"similarity\": $('Normalize Matches').item.json.top_similarity, \"was_answered\": true } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-insert-qalog-answered",
+      "name": "Supabase Insert qa_log - answered",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2580,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: $('OpenAI Chat Completions').item.json.choices[0].message.content } }];"
+      },
+      "id": "response-answer",
+      "name": "Response - Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"telegram_user_id\": $('Route Telegram Update').item.json.user_id, \"question\": $('Route Telegram Update').item.json.question, \"answer\": \"pending_ticket_confirmation\", \"similarity\": $('Normalize Matches').item.json.top_similarity, \"was_answered\": false } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-insert-qalog-pending",
+      "name": "Supabase Insert qa_log - pending ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst row = rows[0];\nif (!row?.id) throw new Error('qa_log pending insert did not return id.');\nreturn [{ json: row }];"
+      },
+      "id": "normalize-pending-qalog-insert",
+      "name": "Normalize Pending qa_log Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2580,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: 'К сожалению, у меня нет ответа на этот вопрос. Передать его поддержке?', reply_markup: { inline_keyboard: [[ { text: 'Да', callback_data: 'support_yes:' + $json.id }, { text: 'Нет', callback_data: 'support_no:' + $json.id } ]] } } }];"
+      },
+      "id": "response-ticket-confirmation",
+      "name": "Response - Ticket Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function getJson(url, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  return new Promise((resolve, reject) => {\n    const req = https.get(url, res => {\n      let body = '';\n      res.on('data', chunk => body += chunk);\n      res.on('end', () => {\n        try {\n          const data = JSON.parse(body || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !data.ok) {\n            reject(new Error(data.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(data);\n          }\n        } catch (error) {\n          reject(error);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => {\n      req.destroy(new Error('Telegram request timeout'));\n    });\n    req.on('error', reject);\n  });\n}\n\nconst adminId = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(v => v.trim()).filter(Boolean)[0];\nif (!adminId || !$env.TELEGRAM_ADMIN_BOT_TOKEN) return [{ json: { notification_ok: false, reason: 'admin target is not configured' } }];\nconst ticket = $('Normalize Confirmed Ticket').item.json;\nconst user = $('Route Telegram Update').item.json;\nconst text = 'Новый тикет #' + ticket.id + '\\nПользователь: ' + (user.username ? '@' + user.username : user.user_id) + '\\nВопрос: ' + ticket.question + '\\n\\nОтветить: /reply ' + ticket.id + ' текст ответа';\nconst url = 'https://api.telegram.org/bot' + $env.TELEGRAM_ADMIN_BOT_TOKEN + '/sendMessage?chat_id=' + adminId + '&text=' + encodeURIComponent(text);\ntry {\n  const data = await getJson(url, 5000);\n  return [{ json: { notification_ok: true, message_id: data.result?.message_id } }];\n} catch (error) {\n  return [{ json: { notification_ok: false, error: error.message } }];\n}\n"
+      },
+      "id": "telegram-notify-admin-new-ticket",
+      "name": "Telegram Notify Admin - New Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -360
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Telegram Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Telegram Update": {
+      "main": [
+        [
+          {
+            "node": "IF - Callback Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Callback Query": {
+      "main": [
+        [
+          {
+            "node": "IF - Callback Yes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Callback Yes": {
+      "main": [
+        [
+          {
+            "node": "Supabase Get Pending qa_log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Callback No",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Get Pending qa_log": {
+      "main": [
+        [
+          {
+            "node": "Normalize Pending qa_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Pending qa_log": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert ticket - confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert ticket - confirmed": {
+      "main": [
+        [
+          {
+            "node": "Normalize Confirmed Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Confirmed Ticket": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update qa_log - ticket created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Update qa_log - ticket created": {
+      "main": [
+        [
+          {
+            "node": "Telegram Notify Admin - New Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Callback No": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update qa_log - ticket declined",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Supabase Update qa_log - ticket declined": {
+      "main": [
+        [
+          {
+            "node": "Response - Ticket Declined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /start": {
+      "main": [
+        [
+          {
+            "node": "Response - Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Has Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Has Text": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "OpenAI Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Supabase RPC - match_documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase RPC - match_documents": {
+      "main": [
+        [
+          {
+            "node": "Normalize Matches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Matches": {
+      "main": [
+        [
+          {
+            "node": "IF - Found Relevant Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Found Relevant Documents": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Chat Completions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase Insert qa_log - pending ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Completions": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert qa_log - answered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert qa_log - answered": {
+      "main": [
+        [
+          {
+            "node": "Response - Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert qa_log - pending ticket": {
+      "main": [
+        [
+          {
+            "node": "Normalize Pending qa_log Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Pending qa_log Insert": {
+      "main": [
+        [
+          {
+            "node": "Response - Ticket Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Notify Admin - New Ticket": {
+      "main": [
+        [
+          {
+            "node": "Response - Ticket Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "telegram-question-v4-admin-notify"
+}

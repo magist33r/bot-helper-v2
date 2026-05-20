@@ -1,0 +1,708 @@
+{
+  "name": "04 Telegram Admin Commands",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin-commands",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "telegram-trigger-admin",
+      "name": "Admin Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "admin-commands"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst update = root.body && typeof root.body === 'object' ? root.body : root;\nconst message = update.message || {};\nconst text = String(message.text || '').trim();\nconst command = text.split(/\\s+/)[0].toLowerCase();\nconst userId = message.from?.id ?? 0;\nconst chatId = message.chat?.id ?? 0;\nconst adminIds = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(id => id.trim()).filter(Boolean);\nconst isAdmin = adminIds.includes(String(userId));\nconst replyMatch = text.match(/^\\/reply(?:@\\w+)?\\s+#?(\\d+)\\s+([\\s\\S]+)/i);\nconst isReplyCommand = /^\\/reply(?:@\\w+)?(?:\\s|$)/i.test(text);\nlet directReply = '';\nif (!message.message_id) directReply = 'Нет сообщения.';\nelse if (!isAdmin) directReply = 'Нет доступа.';\nelse if (command === '/start' || command === '/help') directReply = [\n  'Админ-команды:',\n  '/stats — статистика бота',\n  '/tickets — открытые тикеты',\n  '/reply 3 текст ответа — ответить пользователю и пометить тикет answered',\n  '/reload — загрузить KNOWLEDGE_SEED_TEXT в базу знаний'\n].join('\\n');\nelse if (isReplyCommand && !replyMatch) directReply = 'Формат ответа: /reply 3 текст ответа';\nelse if (!['/stats', '/tickets', '/reload'].includes(command) && !isReplyCommand) directReply = 'Неизвестная команда. Доступны: /stats, /tickets, /reply, /reload';\nreturn [{ json: {\n  chat_id: chatId,\n  user_id: userId,\n  text,\n  command,\n  direct_reply: directReply,\n  has_direct_reply: Boolean(directReply),\n  is_stats: isAdmin && command === '/stats',\n  is_tickets: isAdmin && command === '/tickets',\n  is_reload: isAdmin && command === '/reload',\n  is_reply: isAdmin && Boolean(replyMatch),\n  reply_ticket_id: replyMatch ? Number(replyMatch[1]) : null,\n  reply_text: replyMatch ? replyMatch[2].trim() : ''\n} }];"
+      },
+      "id": "prepare-admin-command",
+      "name": "Prepare Admin Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-direct-reply",
+              "leftValue": "={{ String($json.has_direct_reply) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-direct-reply",
+      "name": "IF - Direct Reply",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text: $('Prepare Admin Command').item.json.direct_reply } }];"
+      },
+      "id": "response-direct",
+      "name": "Response - Direct",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-stats",
+              "leftValue": "={{ String($json.is_stats) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-stats",
+      "name": "IF - /stats",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/support_stats' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {} }}",
+        "options": {}
+      },
+      "id": "supabase-stats",
+      "name": "Supabase RPC - support_stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst s = rows.find(r => r.open_tickets !== undefined) || rows[0] || {};\nconst text = ['Статистика саппорт-бота:', `Открытых тикетов: ${s.open_tickets ?? 0}`, `Закрытых тикетов: ${s.closed_tickets ?? 0}`, `Answered тикетов: ${s.answered_tickets ?? 0}`, `Всего вопросов: ${s.total_questions ?? 0}`, `% отвеченных: ${s.answered_percent ?? 0}%`, `Средняя similarity: ${s.avg_similarity ?? 'n/a'}`].join('\\n');\nreturn [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text } }];"
+      },
+      "id": "response-stats",
+      "name": "Response - Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-tickets",
+              "leftValue": "={{ String($json.is_tickets) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tickets",
+      "name": "IF - /tickets",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/open_tickets' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"limit_count\": 10 } }}",
+        "options": {}
+      },
+      "id": "supabase-open-tickets",
+      "name": "Supabase RPC - open_tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tickets = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(t => t && t.id !== undefined);\nlet text = 'Открытых тикетов нет.';\nif (tickets.length) {\n  text = 'Открытые тикеты:\\n' + tickets.map(t => {\n    const username = t.username ? '@' + t.username : String(t.telegram_user_id);\n    const question = String(t.question || '').slice(0, 160);\n    return `#${t.id} ${username}: ${question}\\nОтветить: /reply ${t.id} текст ответа`;\n  }).join('\\n\\n');\n}\nreturn [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text } }];"
+      },
+      "id": "response-tickets",
+      "name": "Response - Tickets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-reload",
+              "leftValue": "={{ String($json.is_reload) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-reload",
+      "name": "IF - /reload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KNOWLEDGE_INGESTION_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $env.KNOWLEDGE_SEED_TEXT, \"metadata\": { \"source\": \"admin_reload\" } } }}",
+        "options": {}
+      },
+      "id": "trigger-ingestion",
+      "name": "HTTP Request - Trigger Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text: 'База знаний отправлена на перезагрузку из KNOWLEDGE_SEED_TEXT.' } }];"
+      },
+      "id": "response-reload",
+      "name": "Response - Reload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-reply",
+              "leftValue": "={{ String($json.is_reply) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-reply",
+      "name": "IF - /reply",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/tickets?id=eq.' + $('Prepare Admin Command').item.json.reply_ticket_id + '&select=id,telegram_user_id,username,question,status' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-get-reply-ticket",
+      "name": "Supabase Get Reply Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        500
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst ticket = rows[0];\nif (!ticket?.id) {\n  return [{ json: { not_found: true } }];\n}\nreturn [{ json: ticket }];"
+      },
+      "id": "normalize-reply-ticket",
+      "name": "Normalize Reply Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-ticket-found",
+              "leftValue": "={{ String(!$json.not_found) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-reply-ticket-found",
+      "name": "IF - Reply Ticket Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function getJson(url, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  return new Promise((resolve, reject) => {\n    const req = https.get(url, res => {\n      let body = '';\n      res.on('data', chunk => body += chunk);\n      res.on('end', () => {\n        try {\n          const data = JSON.parse(body || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !data.ok) {\n            reject(new Error(data.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(data);\n          }\n        } catch (error) {\n          reject(error);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => {\n      req.destroy(new Error('Telegram request timeout'));\n    });\n    req.on('error', reject);\n  });\n}\n\nconst ticket = $('Normalize Reply Ticket').item.json;\nconst answer = $('Prepare Admin Command').item.json.reply_text;\nconst text = 'Ответ поддержки:\\n' + answer;\nconst url = 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage?chat_id=' + ticket.telegram_user_id + '&text=' + encodeURIComponent(text);\nconst data = await getJson(url, 15000);\nreturn [{ json: { telegram_ok: true, message_id: data.result?.message_id } }];\n"
+      },
+      "id": "telegram-send-reply-to-user",
+      "name": "Telegram Send Reply To User",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/tickets?id=eq.' + $('Prepare Admin Command').item.json.reply_ticket_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"status\": \"answered\", \"closed_at\": new Date().toISOString() } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-update-ticket-answered",
+      "name": "Supabase Update ticket - answered",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2580,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text: 'Ответ отправлен пользователю. Тикет #' + $('Prepare Admin Command').item.json.reply_ticket_id + ' помечен answered.' } }];"
+      },
+      "id": "response-reply-sent",
+      "name": "Response - Reply Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text: 'Тикет #' + $('Prepare Admin Command').item.json.reply_ticket_id + ' не найден.' } }];"
+      },
+      "id": "response-reply-not-found",
+      "name": "Response - Reply Not Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        620
+      ]
+    }
+  ],
+  "connections": {
+    "Admin Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Admin Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Admin Command": {
+      "main": [
+        [
+          {
+            "node": "IF - Direct Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Direct Reply": {
+      "main": [
+        [
+          {
+            "node": "Response - Direct",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /stats": {
+      "main": [
+        [
+          {
+            "node": "Supabase RPC - support_stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase RPC - support_stats": {
+      "main": [
+        [
+          {
+            "node": "Response - Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /tickets": {
+      "main": [
+        [
+          {
+            "node": "Supabase RPC - open_tickets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase RPC - open_tickets": {
+      "main": [
+        [
+          {
+            "node": "Response - Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /reload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Trigger Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP Request - Trigger Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Response - Reload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /reply": {
+      "main": [
+        [
+          {
+            "node": "Supabase Get Reply Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /reload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Get Reply Ticket": {
+      "main": [
+        [
+          {
+            "node": "Normalize Reply Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Reply Ticket": {
+      "main": [
+        [
+          {
+            "node": "IF - Reply Ticket Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Reply Ticket Found": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send Reply To User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response - Reply Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Send Reply To User": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update ticket - answered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Update ticket - answered": {
+      "main": [
+        [
+          {
+            "node": "Response - Reply Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "admin-commands-v5-reply"
+}

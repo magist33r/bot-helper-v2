@@ -1,0 +1,36 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# n8n local/runtime data
+.n8n/
+n8n_data/
+database.sqlite
+database.sqlite-*
+*.sqlite
+*.db
+
+# Temporary workflow imports/exports
+admin_import.json
+main_import.json
+*_import.json
+*_export.json
+*-before-*.json
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.backup
+crash.journal
+*.zip
+*.7z
+*.rar
+
+# Dependencies and OS/editor noise
+node_modules/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

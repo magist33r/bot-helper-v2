@@ -1,0 +1,428 @@
+{
+  "name": "02 Knowledge Ingestion",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "knowledge-ingestion",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-ingestion",
+      "name": "Webhook - Add Knowledge",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        120
+      ],
+      "webhookId": "knowledge-ingestion"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text",
+              "name": "text",
+              "value": "={{ $env.KNOWLEDGE_SEED_TEXT }}",
+              "type": "string"
+            },
+            {
+              "id": "source",
+              "name": "source",
+              "value": "manual_seed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "manual-seed",
+      "name": "Manual Seed Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst incoming = root.body && typeof root.body === 'object' ? root.body : root;\nconst metadata = incoming.metadata && typeof incoming.metadata === 'object' ? incoming.metadata : {};\n\nfunction normalizeText(value) {\n  if (typeof value === 'string') return value;\n  if (value == null) return '';\n  if (typeof value === 'object') {\n    if (typeof value.text === 'string') return value.text;\n    if (typeof value.content === 'string') return value.content;\n    if (typeof value.document === 'string') return value.document;\n    if (typeof value.body === 'string') return value.body;\n    return JSON.stringify(value);\n  }\n  return String(value);\n}\n\nconst text = normalizeText(incoming.text ?? incoming.content ?? incoming.document ?? incoming.body);\nconst url = incoming.url || '';\n\nif (!text.trim() && !url) {\n  throw new Error('No document content found. Send JSON with text/content or url.');\n}\n\nreturn [{\n  json: {\n    content: text,\n    url,\n    metadata: {\n      ...metadata,\n      source: metadata.source || incoming.source || url || 'manual',\n      ingested_at: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "normalize-document-input",
+      "name": "Get Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-url",
+              "leftValue": "={{ $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-url",
+      "name": "IF - Has URL",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        750,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "responseFormat": "text",
+        "options": {}
+      },
+      "id": "fetch-document-url",
+      "name": "HTTP Request - Fetch URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1010,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content",
+              "name": "content",
+              "value": "={{ typeof $json === 'string' ? $json : ($json.body || $json.data || JSON.stringify($json)) }}",
+              "type": "string"
+            },
+            {
+              "id": "metadata",
+              "name": "metadata",
+              "value": "={{ $('Get Document').item.json.metadata }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-fetched-text",
+      "name": "Prepare Fetched Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1260,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = String($json.content || '').replace(/\\s+/g, ' ').trim();\nif (!text) {\n  throw new Error('Document text is empty after normalization.');\n}\n\nconst metadata = $json.metadata || {};\nconst approxWordsPerToken = 0.75;\nconst chunkTokens = 600;\nconst overlapTokens = 100;\nconst chunkWords = Math.max(1, Math.round(chunkTokens * approxWordsPerToken));\nconst overlapWords = Math.max(0, Math.round(overlapTokens * approxWordsPerToken));\nconst step = Math.max(1, chunkWords - overlapWords);\nconst words = text.split(/\\s+/);\nconst chunks = [];\n\nfor (let start = 0; start < words.length; start += step) {\n  const end = Math.min(start + chunkWords, words.length);\n  const content = words.slice(start, end).join(' ');\n  if (content.trim()) {\n    chunks.push({\n      json: {\n        content,\n        metadata: {\n          ...metadata,\n          chunk_index: chunks.length,\n          chunk_start_word: start,\n          chunk_end_word: end,\n          chunk_tokens_target: chunkTokens,\n          overlap_tokens_target: overlapTokens\n        }\n      }\n    });\n  }\n  if (end === words.length) break;\n}\n\nreturn chunks;"
+      },
+      "id": "chunk-document",
+      "name": "Function - Chunk Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1530,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-over-items",
+      "name": "Loop over items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1790,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/$/, '') + '/embeddings' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"text-embedding-3-small\", \"input\": $json.content } }}",
+        "options": {}
+      },
+      "id": "openai-embedding-chunk",
+      "name": "OpenAI Embedding - Chunk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2050,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunk = $('Loop over items').item.json;\nconst embedding = $json.data?.[0]?.embedding;\n\nif (!chunk?.content) {\n  throw new Error('Missing chunk content before Supabase insert.');\n}\n\nif (!Array.isArray(embedding)) {\n  throw new Error('Missing embedding array from embeddings response.');\n}\n\nreturn [{\n  json: {\n    content: chunk.content,\n    metadata: chunk.metadata || {},\n    embedding\n  }\n}];"
+      },
+      "id": "prepare-document-insert",
+      "name": "Prepare Document Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2310,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/documents' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": $json.content, \"metadata\": $json.metadata, \"embedding\": $json.embedding } }}",
+        "options": {}
+      },
+      "id": "supabase-insert-document",
+      "name": "Supabase Insert documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2570,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, message: 'Knowledge ingestion completed.' } }];"
+      },
+      "id": "ingestion-complete",
+      "name": "Ingestion Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2050,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Manual Seed Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Seed Text": {
+      "main": [
+        [
+          {
+            "node": "Get Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Add Knowledge": {
+      "main": [
+        [
+          {
+            "node": "Get Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Document": {
+      "main": [
+        [
+          {
+            "node": "IF - Has URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Has URL": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Fetch URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Function - Chunk Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Fetch URL": {
+      "main": [
+        [
+          {
+            "node": "Prepare Fetched Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Fetched Text": {
+      "main": [
+        [
+          {
+            "node": "Function - Chunk Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function - Chunk Document": {
+      "main": [
+        [
+          {
+            "node": "Loop over items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop over items": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI Embedding - Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embedding - Chunk": {
+      "main": [
+        [
+          {
+            "node": "Prepare Document Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Document Insert": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert documents": {
+      "main": [
+        [
+          {
+            "node": "Loop over items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "knowledge-ingestion-v1"
+}
