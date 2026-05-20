@@ -15,7 +15,8 @@
       "position": [
         0,
         0
-      ]
+      ],
+      "webhookId": "telegram-question"
     },
     {
       "parameters": {
@@ -1311,5 +1312,5 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "versionId": "telegram-question-v5-semantic-cache"
+  "versionId": "telegram-question-v6-stable-webhook-id"
 }
