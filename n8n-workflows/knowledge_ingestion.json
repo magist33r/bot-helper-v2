@@ -16,7 +16,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "knowledge-ingestion",
-        "responseMode": "lastNode",
+        "responseMode": "onReceived",
         "options": {}
       },
       "id": "webhook-ingestion",
@@ -269,6 +269,19 @@
         2050,
         160
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst token = headers['x-internal-token'] || headers['X-Internal-Token'];\nif (!token || token !== $env.INTERNAL_WEBHOOK_SECRET) {\n  throw new Error('Forbidden: invalid internal token');\n}\nreturn $input.all();"
+      },
+      "id": "verify-internal-token-ingestion",
+      "name": "Verify Internal Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        120
+      ]
     }
   ],
   "connections": {
@@ -298,7 +311,7 @@
       "main": [
         [
           {
-            "node": "Get Document",
+            "node": "Verify Internal Token",
             "type": "main",
             "index": 0
           }
@@ -412,6 +425,17 @@
         [
           {
             "node": "Loop over items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Internal Token": {
+      "main": [
+        [
+          {
+            "node": "Get Document",
             "type": "main",
             "index": 0
           }

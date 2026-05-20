@@ -25,9 +25,11 @@ supabase/migrations/
   002_pgvector.sql
   003_functions.sql
   004_semantic_cache.sql
+  005_rate_limits.sql
 docs/
   PROMPTS.md
-  SEMANTIC_CACHE_PATCH.md
+scripts/
+  backup.sh
 ```
 
 ## 1. Подготовка .env
@@ -40,11 +42,18 @@ cp .env.example .env
 
 ```env
 N8N_ENCRYPTION_KEY=long-random-string
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=...
 OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://aitunnel.ru/v1
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_ADMIN_BOT_TOKEN=...
+TG_WEBHOOK_SECRET=...
+TG_ADMIN_WEBHOOK_SECRET=...
+INTERNAL_WEBHOOK_SECRET=...
 ADMIN_TELEGRAM_IDS=123456789,987654321
 ```
 
@@ -55,6 +64,8 @@ N8N_HOST=n8n.swagadayz.ru
 N8N_PROTOCOL=https
 WEBHOOK_URL=https://bot.swagadayz.ru/
 ```
+
+Без `N8N_BASIC_AUTH_ACTIVE=true` (или IP whitelist на Nginx) публиковать n8n UI в интернет нельзя.
 
 ## 2. Запуск n8n
 
@@ -78,6 +89,7 @@ docker-compose ps
 2. `supabase/migrations/002_pgvector.sql`
 3. `supabase/migrations/003_functions.sql`
 4. `supabase/migrations/004_semantic_cache.sql`
+5. `supabase/migrations/005_rate_limits.sql`
 
 `001_init.sql` идемпотентно включает `vector`, потому что таблица `documents` использует тип `vector(1536)`. `002_pgvector.sql` повторно вызывает `CREATE EXTENSION IF NOT EXISTS vector` и создает IVFFlat индекс.
 
@@ -97,6 +109,13 @@ analyze public.documents;
 
 ```text
 https://bot.swagadayz.ru/webhook/admin-commands
+```
+
+### Setting Telegram webhooks
+
+```bash
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/telegram-question&secret_token=${TG_WEBHOOK_SECRET}"
+curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}"
 ```
 
 Workflow используют HTTP Request для OpenAI и Supabase, поэтому отдельные credentials для них не нужны: ключи читаются из env-переменных контейнера.
@@ -132,6 +151,7 @@ https://bot.swagadayz.ru/webhook/knowledge-ingestion
 ```bash
 curl -X POST "$KNOWLEDGE_INGESTION_WEBHOOK_URL" \
   -H "Content-Type: application/json" \
+  -H "X-Internal-Token: ${INTERNAL_WEBHOOK_SECRET}" \
   -d '{
     "text": "Текст документа базы знаний...",
     "metadata": { "source": "manual-test", "title": "Test KB" }
@@ -143,6 +163,7 @@ curl -X POST "$KNOWLEDGE_INGESTION_WEBHOOK_URL" \
 ```bash
 curl -X POST "$KNOWLEDGE_INGESTION_WEBHOOK_URL" \
   -H "Content-Type: application/json" \
+  -H "X-Internal-Token: ${INTERNAL_WEBHOOK_SECRET}" \
   -d '{
     "url": "https://example.com/help/article",
     "metadata": { "source": "example-help" }
@@ -191,6 +212,7 @@ POST /webhook/close-ticket
 ```bash
 curl -X POST "https://bot.swagadayz.ru/webhook/close-ticket" \
   -H "Content-Type: application/json" \
+  -H "X-Internal-Token: ${INTERNAL_WEBHOOK_SECRET}" \
   -d '{
     "ticket_id": 1,
     "notify": true,
@@ -234,6 +256,8 @@ status = 'closed', closed_at = now()
 
 `/reload` сначала очищает semantic cache через `purge_cache`, затем вызывает `KNOWLEDGE_INGESTION_WEBHOOK_URL` и отправляет туда `KNOWLEDGE_SEED_TEXT`. Для больших seed-файлов лучше вызывать ingestion webhook напрямую из CI/script и передавать текст в body.
 
+Для `/reload` workflow автоматически добавляет `X-Internal-Token` в запрос к webhook загрузки знаний.
+
 ## 10. Порог similarity
 
 По умолчанию в `telegram_question.json` используется:
@@ -256,6 +280,18 @@ status = 'closed', closed_at = now()
 - Не включайте публичный доступ к n8n без auth/reverse proxy.
 - Для production используйте HTTPS `WEBHOOK_URL`, иначе Telegram не сможет стабильно доставлять webhook.
 - Для Telegram webhooks лучше использовать отдельный короткий домен, например `bot.swagadayz.ru`, а n8n UI держать на `n8n.swagadayz.ru`.
+- Все публичные webhook-и проверяют секреты: `TG_WEBHOOK_SECRET`, `TG_ADMIN_WEBHOOK_SECRET`, `INTERNAL_WEBHOOK_SECRET`.
+- Вопросы пользователя ограничены 1000 символами, и включен rate limit (`15` запросов в `60` секунд на `user_id`).
+
+## 12. Backups
+
+В репозитории есть [scripts/backup.sh](scripts/backup.sh) для `pg_dump` Supabase и ротации бэкапов (хранит 14 дней).
+
+Пример cron на VPS (каждую ночь в 03:30):
+
+```bash
+30 3 * * * BACKUP_DIR=/var/backups/swaga-bot SUPABASE_DB_URL='postgresql://...' /opt/allaibot_v2/scripts/backup.sh >> /var/log/swaga-backup.log 2>&1
+```
 
 ## Final checklist
 
@@ -270,3 +306,6 @@ status = 'closed', closed_at = now()
 - [ ] `/stats` доступен админу.
 - [ ] `/reply` отправляет ответ пользователю и меняет статус тикета на `answered`.
 - [ ] Telegram webhooks смотрят на production-домен `bot.swagadayz.ru`.
+- [ ] Telegram webhooks установлены с `secret_token`.
+- [ ] `X-Internal-Token` используется для `/webhook/knowledge-ingestion` и `/webhook/close-ticket`.
+- [ ] Rate limiting работает: при флуде бот отвечает "Слишком много запросов, подождите минуту".

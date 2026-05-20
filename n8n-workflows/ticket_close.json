@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "close-ticket",
-        "responseMode": "lastNode",
+        "responseMode": "onReceived",
         "options": {}
       },
       "id": "close-ticket-webhook",
@@ -137,6 +137,19 @@
         1040,
         120
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers || {};\nconst token = headers['x-internal-token'] || headers['X-Internal-Token'];\nif (!token || token !== $env.INTERNAL_WEBHOOK_SECRET) {\n  throw new Error('Forbidden: invalid internal token');\n}\nreturn $input.all();"
+      },
+      "id": "verify-internal-token-close",
+      "name": "Verify Internal Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        -140
+      ]
     }
   ],
   "connections": {
@@ -144,7 +157,7 @@
       "main": [
         [
           {
-            "node": "Supabase Update ticket closed",
+            "node": "Verify Internal Token",
             "type": "main",
             "index": 0
           }
@@ -196,6 +209,17 @@
         [
           {
             "node": "Close Ticket Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Internal Token": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update ticket closed",
             "type": "main",
             "index": 0
           }
