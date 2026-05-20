@@ -48,12 +48,12 @@ TELEGRAM_ADMIN_BOT_TOKEN=...
 ADMIN_TELEGRAM_IDS=123456789,987654321
 ```
 
-Для production Telegram Trigger нужен публичный HTTPS `WEBHOOK_URL`, например через reverse proxy, Cloudflare Tunnel или ngrok:
+Для production используйте два HTTPS-домена: один для UI n8n, второй для Telegram/webhook traffic. В текущем деплое UI находится на `https://n8n.swagadayz.ru`, webhook endpoint — на `https://bot.swagadayz.ru`:
 
 ```env
-N8N_HOST=n8n.example.com
+N8N_HOST=n8n.swagadayz.ru
 N8N_PROTOCOL=https
-WEBHOOK_URL=https://n8n.example.com/
+WEBHOOK_URL=https://bot.swagadayz.ru/
 ```
 
 ## 2. Запуск n8n
@@ -96,7 +96,7 @@ analyze public.documents;
 Для админ-команд используйте отдельного Telegram-бота и заполните `TELEGRAM_ADMIN_BOT_TOKEN`. После активации `04 Telegram Admin Commands` установите webhook второго бота на:
 
 ```text
-https://n8n.example.com/webhook/admin-commands
+https://bot.swagadayz.ru/webhook/admin-commands
 ```
 
 Workflow используют HTTP Request для OpenAI и Supabase, поэтому отдельные credentials для них не нужны: ключи читаются из env-переменных контейнера.
@@ -124,7 +124,7 @@ Workflow используют HTTP Request для OpenAI и Supabase, поэто
 Production URL будет вида:
 
 ```text
-https://n8n.example.com/webhook/knowledge-ingestion
+https://bot.swagadayz.ru/webhook/knowledge-ingestion
 ```
 
 Пример POST:
@@ -175,7 +175,7 @@ docker-compose restart n8n
 4. Напишите боту вопрос по документу.
 5. Бот должен ответить через `gpt-4o-mini` на основе найденных чанков.
 6. Напишите вопрос не по теме.
-7. Бот должен создать тикет и ответить `Создан тикет #...`.
+7. Бот должен предложить передать вопрос поддержке через inline-кнопки `Да/Нет`; после `Да` создается тикет.
 8. Проверьте таблицу `qa_log` в Supabase.
 
 ## 8. Закрытие тикета
@@ -189,7 +189,7 @@ POST /webhook/close-ticket
 Пример:
 
 ```bash
-curl -X POST "https://n8n.example.com/webhook/close-ticket" \
+curl -X POST "https://bot.swagadayz.ru/webhook/close-ticket" \
   -H "Content-Type: application/json" \
   -d '{
     "ticket_id": 1,
@@ -215,6 +215,7 @@ status = 'closed', closed_at = now()
 ```text
 /stats
 /tickets
+/reply <ticket_id> <текст ответа>
 /reload
 ```
 
@@ -227,9 +228,11 @@ status = 'closed', closed_at = now()
 - процент отвеченных;
 - среднюю similarity.
 
-`/tickets` показывает последние 10 открытых тикетов.
+`/tickets` показывает последние 10 открытых тикетов и готовую подсказку для `/reply`.
 
-`/reload` вызывает `KNOWLEDGE_INGESTION_WEBHOOK_URL` и отправляет туда `KNOWLEDGE_SEED_TEXT`. Для больших seed-файлов лучше вызывать ingestion webhook напрямую из CI/script и передавать текст в body.
+`/reply` отправляет ответ пользователю через основного Telegram-бота и переводит тикет в `answered`.
+
+`/reload` сначала очищает semantic cache через `purge_cache`, затем вызывает `KNOWLEDGE_INGESTION_WEBHOOK_URL` и отправляет туда `KNOWLEDGE_SEED_TEXT`. Для больших seed-файлов лучше вызывать ingestion webhook напрямую из CI/script и передавать текст в body.
 
 ## 10. Порог similarity
 
@@ -251,7 +254,8 @@ status = 'closed', closed_at = now()
 - `SUPABASE_SERVICE_ROLE_KEY` должен быть только в self-hosted n8n, не в браузере и не в клиентском коде.
 - Миграции включают RLS на таблицах без публичных policies. Workflow работают через service role key, который обходит RLS.
 - Не включайте публичный доступ к n8n без auth/reverse proxy.
-- Для production используйте HTTPS `WEBHOOK_URL`, иначе Telegram Trigger не сможет стабильно зарегистрировать webhook.
+- Для production используйте HTTPS `WEBHOOK_URL`, иначе Telegram не сможет стабильно доставлять webhook.
+- Для Telegram webhooks лучше использовать отдельный короткий домен, например `bot.swagadayz.ru`, а n8n UI держать на `n8n.swagadayz.ru`.
 
 ## Final checklist
 
@@ -264,3 +268,5 @@ status = 'closed', closed_at = now()
 - [ ] Вопрос вне базы создает тикет.
 - [ ] `qa_log` пишет `similarity` и `was_answered`.
 - [ ] `/stats` доступен админу.
+- [ ] `/reply` отправляет ответ пользователю и меняет статус тикета на `answered`.
+- [ ] Telegram webhooks смотрят на production-домен `bot.swagadayz.ru`.
