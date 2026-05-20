@@ -6,6 +6,7 @@
 - n8n получает embedding через OpenAI `text-embedding-3-small`.
 - Supabase RPC `match_documents` ищет релевантные чанки через pgvector.
 - Если найден контекст, `gpt-4o-mini` отвечает строго по базе знаний.
+- Повторяющиеся по смыслу вопросы могут отвечаться из semantic cache без повторного вызова LLM.
 - Если контекст не найден, создается тикет.
 - `qa_log` хранит similarity и факт ответа для настройки порога.
 
@@ -23,8 +24,10 @@ supabase/migrations/
   001_init.sql
   002_pgvector.sql
   003_functions.sql
+  004_semantic_cache.sql
 docs/
   PROMPTS.md
+  SEMANTIC_CACHE_PATCH.md
 ```
 
 ## 1. Подготовка .env
@@ -74,8 +77,11 @@ docker-compose ps
 1. `supabase/migrations/001_init.sql`
 2. `supabase/migrations/002_pgvector.sql`
 3. `supabase/migrations/003_functions.sql`
+4. `supabase/migrations/004_semantic_cache.sql`
 
 `001_init.sql` идемпотентно включает `vector`, потому что таблица `documents` использует тип `vector(1536)`. `002_pgvector.sql` повторно вызывает `CREATE EXTENSION IF NOT EXISTS vector` и создает IVFFlat индекс.
+
+`004_semantic_cache.sql` добавляет таблицу `cache_answers` и RPC для кеширования готовых ответов. Если миграция еще не применена, основной workflow продолжит работать по обычному RAG-пути, но кеш будет отключен.
 
 После загрузки значимого объема документов можно повторно выполнить:
 

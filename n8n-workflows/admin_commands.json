@@ -291,7 +291,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1800,
+        2060,
         260
       ]
     },
@@ -304,7 +304,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2060,
+        2320,
         260
       ]
     },
@@ -494,6 +494,44 @@
         2320,
         620
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/purge_cache' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {} }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-rpc-purge-cache",
+      "name": "Supabase RPC - purge_cache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        260
+      ],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -599,7 +637,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request - Trigger Ingestion",
+            "node": "Supabase RPC - purge_cache",
             "type": "main",
             "index": 0
           }
@@ -697,6 +735,17 @@
           }
         ]
       ]
+    },
+    "Supabase RPC - purge_cache": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Trigger Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -704,5 +753,5 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "versionId": "admin-commands-v5-reply"
+  "versionId": "admin-commands-v6-purge-cache"
 }

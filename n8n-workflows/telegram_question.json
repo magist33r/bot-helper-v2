@@ -606,7 +606,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2840,
+        3360,
         120
       ]
     },
@@ -689,6 +689,256 @@
         2320,
         -360
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/match_cached_answer' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"query_embedding\": $('OpenAI Embeddings').item.json.data[0].embedding, \"match_threshold\": 0.92 } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-rpc-match-cached-answer",
+      "name": "Supabase RPC - match_cached_answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        180
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nlet rows = [];\nif (inputItems.length === 1 && Array.isArray(inputItems[0].json)) rows = inputItems[0].json;\nelse rows = inputItems.map(i => i.json).filter(r => r && r.id !== undefined && r.answer);\nconst hit = rows[0] || null;\nreturn [{ json: { cache_hit: Boolean(hit), cache_id: hit?.id ?? null, cached_answer: hit?.answer ?? null, cache_similarity: hit?.similarity ?? null } }];"
+      },
+      "id": "normalize-cache-hit",
+      "name": "Normalize Cache Hit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-cache-hit",
+              "leftValue": "={{ String($json.cache_hit) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-cache-hit",
+      "name": "IF - Cache Hit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/touch_cache_answer' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"cache_id\": $('Normalize Cache Hit').item.json.cache_id } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-rpc-touch-cache-answer",
+      "name": "Supabase RPC - touch_cache_answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/qa_log' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"telegram_user_id\": $('Route Telegram Update').item.json.user_id, \"question\": $('Route Telegram Update').item.json.question, \"answer\": $('Normalize Cache Hit').item.json.cached_answer, \"similarity\": $('Normalize Cache Hit').item.json.cache_similarity, \"was_answered\": true } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-insert-qalog-cached",
+      "name": "Supabase Insert qa_log - cached",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2580,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: $('Normalize Cache Hit').item.json.cached_answer } }];"
+      },
+      "id": "response-answer-cached",
+      "name": "Response - Answer (Cached)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-cacheable-answer",
+              "leftValue": "={{ String(($('Route Telegram Update').item.json.question || '').trim().length >= 10) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-cacheable-answer",
+      "name": "IF - Cacheable Answer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2840,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/cache_answers' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"question\": $('Route Telegram Update').item.json.question, \"answer\": $('OpenAI Chat Completions').item.json.choices[0].message.content, \"embedding\": $('OpenAI Embeddings').item.json.data[0].embedding } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-insert-cache-answer",
+      "name": "Supabase Insert cache_answers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        80
+      ],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -862,7 +1112,7 @@
       "main": [
         [
           {
-            "node": "Supabase RPC - match_documents",
+            "node": "Supabase RPC - match_cached_answer",
             "type": "main",
             "index": 0
           }
@@ -924,7 +1174,7 @@
       "main": [
         [
           {
-            "node": "Response - Answer",
+            "node": "IF - Cacheable Answer",
             "type": "main",
             "index": 0
           }
@@ -963,6 +1213,97 @@
           }
         ]
       ]
+    },
+    "Supabase RPC - match_cached_answer": {
+      "main": [
+        [
+          {
+            "node": "Normalize Cache Hit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Cache Hit": {
+      "main": [
+        [
+          {
+            "node": "IF - Cache Hit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Cache Hit?": {
+      "main": [
+        [
+          {
+            "node": "Supabase RPC - touch_cache_answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase RPC - match_documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase RPC - touch_cache_answer": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert qa_log - cached",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert qa_log - cached": {
+      "main": [
+        [
+          {
+            "node": "Response - Answer (Cached)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Cacheable Answer": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert cache_answers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Response - Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert cache_answers": {
+      "main": [
+        [
+          {
+            "node": "Response - Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -970,5 +1311,5 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "versionId": "telegram-question-v4-admin-notify"
+  "versionId": "telegram-question-v5-semantic-cache"
 }
