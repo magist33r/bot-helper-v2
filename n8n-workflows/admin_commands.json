@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const root = $input.first().json;\nconst headers = root.headers || {};\nconst secret = headers['x-telegram-bot-api-secret-token'] || headers['X-Telegram-Bot-Api-Secret-Token'];\nif (!secret || secret !== $env.TG_ADMIN_WEBHOOK_SECRET) {\n  throw new Error('Forbidden: invalid webhook secret');\n}\n\nconst update = root.body && typeof root.body === 'object' ? root.body : root;\nconst message = update.message || {};\nconst text = String(message.text || '').trim();\nconst command = text.split(/\\s+/)[0].toLowerCase();\nconst userId = message.from?.id ?? 0;\nconst chatId = message.chat?.id ?? 0;\nconst adminIds = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(id => id.trim()).filter(Boolean);\nconst isAdmin = adminIds.includes(String(userId));\nconst replyMatch = text.match(/^\\/reply(?:@\\w+)?\\s+#?(\\d+)\\s+([\\s\\S]+)/i);\nconst isReplyCommand = /^\\/reply(?:@\\w+)?(?:\\s|$)/i.test(text);\nlet directReply = '';\nif (!message.message_id) directReply = 'Нет сообщения.';\nelse if (!isAdmin) directReply = 'Нет доступа.';\nelse if (command === '/start' || command === '/help') directReply = [\n  'Админ-команды:',\n  '/stats — статистика бота',\n  '/tickets — открытые тикеты',\n  '/reply 3 текст ответа — ответить пользователю и пометить тикет answered',\n  '/reload — загрузить KNOWLEDGE_SEED_TEXT в базу знаний'\n].join('\\n');\nelse if (isReplyCommand && !replyMatch) directReply = 'Формат ответа: /reply 3 текст ответа';\nelse if (!['/stats', '/tickets', '/reload'].includes(command) && !isReplyCommand) directReply = 'Неизвестная команда. Доступны: /stats, /tickets, /reply, /reload';\nreturn [{ json: {\n  chat_id: chatId,\n  user_id: userId,\n  text,\n  command,\n  direct_reply: directReply,\n  has_direct_reply: Boolean(directReply),\n  is_stats: isAdmin && command === '/stats',\n  is_tickets: isAdmin && command === '/tickets',\n  is_reload: isAdmin && command === '/reload',\n  is_reply: isAdmin && Boolean(replyMatch),\n  reply_ticket_id: replyMatch ? Number(replyMatch[1]) : null,\n  reply_text: replyMatch ? replyMatch[2].trim() : ''\n} }];"
+        "jsCode": "const root = $input.first().json;\nconst headers = root.headers || {};\nconst secret = headers['x-telegram-bot-api-secret-token'] || headers['X-Telegram-Bot-Api-Secret-Token'];\nif (!secret || secret !== $env.TG_ADMIN_WEBHOOK_SECRET) {\n  throw new Error('Forbidden: invalid webhook secret');\n}\n\nconst update = root.body && typeof root.body === 'object' ? root.body : root;\nconst message = update.message || {};\nconst text = String(message.text || '').trim();\nconst command = text.split(/\\s+/)[0].toLowerCase();\nconst userId = message.from?.id ?? 0;\nconst chatId = message.chat?.id ?? 0;\nconst adminIds = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(id => id.trim()).filter(Boolean);\nconst isAdmin = adminIds.includes(String(userId));\n\nconst replyMatch = text.match(/^\\/reply(?:@\\w+)?\\s+#?(\\d+)\\s+([\\s\\S]+)/i);\nconst isReplyCommand = /^\\/reply(?:@\\w+)?(?:\\s|$)/i.test(text);\nconst ticketMatch = text.match(/^\\/ticket(?:@\\w+)?\\s+#?(\\d+)/i);\nconst isTicketCommand = /^\\/ticket(?:@\\w+)?(?:\\s|$)/i.test(text);\n\nlet directReply = '';\nif (!message.message_id) directReply = 'Нет сообщения.';\nelse if (!isAdmin) directReply = 'Нет доступа.';\nelse if (command === '/start' || command === '/help') directReply = [\n  'Админ-команды:',\n  '/stats — статистика бота',\n  '/feedback — оценки ответов за 7 дней',\n  '/tickets — открытые тикеты',\n  '/ticket 5 — посмотреть детали тикета #5',\n  '/reply 3 текст ответа — ответить пользователю и пометить тикет answered',\n  '/reload — загрузить KNOWLEDGE_SEED_TEXT в базу знаний'\n].join('\\n');\nelse if (isReplyCommand && !replyMatch) directReply = 'Формат ответа: /reply 3 текст ответа';\nelse if (isTicketCommand && !ticketMatch) directReply = 'Формат просмотра: /ticket 5';\nelse if (!['/stats', '/tickets', '/reload', '/feedback'].includes(command) && !isReplyCommand && !isTicketCommand) directReply = 'Неизвестная команда. Доступны: /stats, /feedback, /tickets, /ticket, /reply, /reload';\n\nreturn [{ json: {\n  chat_id: chatId,\n  user_id: userId,\n  text,\n  command,\n  direct_reply: directReply,\n  has_direct_reply: Boolean(directReply),\n  is_stats: isAdmin && command === '/stats',\n  is_feedback: isAdmin && command === '/feedback',\n  is_tickets: isAdmin && command === '/tickets',\n  is_ticket_view: isAdmin && Boolean(ticketMatch),\n  view_ticket_id: ticketMatch ? Number(ticketMatch[1]) : null,\n  is_reload: isAdmin && command === '/reload',\n  is_reply: isAdmin && Boolean(replyMatch),\n  reply_ticket_id: replyMatch ? Number(replyMatch[1]) : null,\n  reply_text: replyMatch ? replyMatch[2].trim() : ''\n} }];"
       },
       "id": "prepare-admin-command",
       "name": "Prepare Admin Command",
@@ -421,7 +421,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst ticket = $('Normalize Reply Ticket').item.json;\nconst answer = $('Prepare Admin Command').item.json.reply_text;\nconst text = 'Ответ поддержки:\\n' + answer;\nconst safeText = text.length > 4090 ? text.slice(0, 4090) + '...' : text;\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', { chat_id: ticket.telegram_user_id, text: safeText }, 15000);\nreturn [{ json: { telegram_ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst ticket = $('Normalize Reply Ticket').item.json;\nconst answer = $('Prepare Admin Command').item.json.reply_text;\nconst ticketId = $('Prepare Admin Command').item.json.reply_ticket_id;\nconst text = '💬 Ответ от поддержки на твой тикет #' + ticketId + ':\\n\\n' + answer + '\\n\\nЕсли остались вопросы — напиши, я постараюсь помочь.';\nconst safeText = text.length > 4090 ? text.slice(0, 4090) + '...' : text;\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', { chat_id: ticket.telegram_user_id, text: safeText }, 15000);\nreturn [{ json: { telegram_ok: true, message_id: data.result?.message_id } }];"
       },
       "id": "telegram-send-reply-to-user",
       "name": "Telegram Send Reply To User",
@@ -536,6 +536,163 @@
         260
       ],
       "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-feedback",
+              "leftValue": "={{ String($json.is_feedback) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-feedback",
+      "name": "IF - /feedback",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/feedback_stats' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"days\": 7 } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-feedback-stats",
+      "name": "Supabase RPC - feedback_stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst s = rows[0] || {};\nconst text = '📊 Оценки за 7 дней:\\n\\nС оценками: ' + (s.total_with_feedback ?? 0) + '\\n👍: ' + (s.positive ?? 0) + '\\n👎: ' + (s.negative ?? 0) + '\\nПоложительных: ' + (s.positive_percent ?? 0) + '%';\nreturn [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text } }];"
+      },
+      "id": "response-feedback-stats",
+      "name": "Response - Feedback Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-ticket-view",
+              "leftValue": "={{ String($json.is_ticket_view) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ticket-view",
+      "name": "IF - /ticket",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/tickets?id=eq.' + $('Prepare Admin Command').item.json.view_ticket_id + '&select=id,telegram_user_id,username,question,status,created_at' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "supabase-get-ticket-details",
+      "name": "Supabase Get Ticket Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        360
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(Boolean);\nconst t = rows[0];\nconst id = $('Prepare Admin Command').item.json.view_ticket_id;\nif (!t?.id) {\n  return [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text: 'Тикет #' + id + ' не найден.' } }];\n}\nconst username = t.username ? '@' + t.username : String(t.telegram_user_id);\nconst date = new Date(t.created_at).toLocaleString('ru-RU');\nconst text = '🎫 Тикет #' + t.id + '\\nСтатус: ' + t.status + '\\nПользователь: ' + username + '\\nСоздан: ' + date + '\\n\\nВопрос:\\n' + t.question + '\\n\\nОтветить:\\n/reply ' + t.id + ' текст ответа';\nreturn [{ json: { method: 'sendMessage', chat_id: $('Prepare Admin Command').item.json.chat_id, text } }];"
+      },
+      "id": "response-ticket-details",
+      "name": "Response - Ticket Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        360
+      ]
     }
   ],
   "connections": {
@@ -590,7 +747,7 @@
         ],
         [
           {
-            "node": "IF - /tickets",
+            "node": "IF - /feedback",
             "type": "main",
             "index": 0
           }
@@ -619,7 +776,7 @@
         ],
         [
           {
-            "node": "IF - /reply",
+            "node": "IF - /ticket",
             "type": "main",
             "index": 0
           }
@@ -745,6 +902,64 @@
         [
           {
             "node": "HTTP Request - Trigger Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /feedback": {
+      "main": [
+        [
+          {
+            "node": "Supabase RPC - feedback_stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase RPC - feedback_stats": {
+      "main": [
+        [
+          {
+            "node": "Response - Feedback Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - /ticket": {
+      "main": [
+        [
+          {
+            "node": "Supabase Get Ticket Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - /reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Get Ticket Details": {
+      "main": [
+        [
+          {
+            "node": "Response - Ticket Details",
             "type": "main",
             "index": 0
           }
