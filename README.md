@@ -14,6 +14,7 @@
 
 ```text
 docker-compose.yml
+nginx_bot_swagadayz.conf
 .env.example
 n8n-workflows/
   telegram_question.json
@@ -26,10 +27,12 @@ supabase/migrations/
   003_functions.sql
   004_semantic_cache.sql
   005_rate_limits.sql
+  006_feedback.sql
 docs/
   PROMPTS.md
 scripts/
   backup.sh
+  diagnose.sh
 ```
 
 ## 1. Подготовка .env
@@ -81,6 +84,8 @@ UI будет доступен на `http://localhost:5678` или на ваше
 docker-compose ps
 ```
 
+Для VPS с Nginx используйте [nginx_bot_swagadayz.conf](nginx_bot_swagadayz.conf) как рекомендуемый конфиг для `bot.swagadayz.ru`. Он проксирует Telegram webhooks на `127.0.0.1:5678` и выставляет таймауты, достаточные для n8n.
+
 ## 3. Supabase migrations
 
 Откройте Supabase Dashboard -> SQL Editor и выполните файлы по порядку:
@@ -90,6 +95,7 @@ docker-compose ps
 3. `supabase/migrations/003_functions.sql`
 4. `supabase/migrations/004_semantic_cache.sql`
 5. `supabase/migrations/005_rate_limits.sql`
+6. `supabase/migrations/006_feedback.sql`
 
 `001_init.sql` идемпотентно включает `vector`, потому что таблица `documents` использует тип `vector(1536)`. `002_pgvector.sql` повторно вызывает `CREATE EXTENSION IF NOT EXISTS vector` и создает IVFFlat индекс.
 
@@ -116,6 +122,13 @@ https://bot.swagadayz.ru/webhook/admin-commands
 ```bash
 curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/telegram-question&secret_token=${TG_WEBHOOK_SECRET}"
 curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}"
+```
+
+Для production лучше добавить `max_connections=10`, чтобы Telegram мог параллельно доставлять несколько updates:
+
+```bash
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/telegram-question&secret_token=${TG_WEBHOOK_SECRET}&max_connections=10"
+curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}&max_connections=10"
 ```
 
 Workflow используют HTTP Request для OpenAI и Supabase, поэтому отдельные credentials для них не нужны: ключи читаются из env-переменных контейнера.
@@ -292,6 +305,17 @@ status = 'closed', closed_at = now()
 ```bash
 30 3 * * * BACKUP_DIR=/var/backups/swaga-bot SUPABASE_DB_URL='postgresql://...' /opt/allaibot_v2/scripts/backup.sh >> /var/log/swaga-backup.log 2>&1
 ```
+
+## 13. Diagnostics
+
+На VPS есть диагностический скрипт [scripts/diagnose.sh](scripts/diagnose.sh). Запускать из директории проекта:
+
+```bash
+cd /opt/allaibot_v2
+./scripts/diagnose.sh
+```
+
+Он проверяет состояние Docker-контейнера, последние логи n8n, `getWebhookInfo` для основного и админ-бота, локальный webhook endpoint и `/healthz`.
 
 ## Final checklist
 

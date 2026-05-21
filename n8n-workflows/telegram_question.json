@@ -234,7 +234,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: '✅ Готово! Тикет #' + $('Normalize Confirmed Ticket').item.json.id + ' создан.\\n\\nПоддержка ответит прямо здесь, в этом чате. Среднее время ответа — несколько часов.' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/editMessageText', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "const text = \"✅ Готово! Тикет #\" + $('Normalize Confirmed Ticket').item.json.id + \" создан.\\n\\nПоддержка ответит прямо здесь, в этом чате. Среднее время ответа — несколько часов.\";\nreturn [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text } }];"
       },
       "id": "response-ticket-submitted",
       "name": "Response - Ticket Submitted",
@@ -320,7 +320,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: 'Окей 👌 Попробуй переформулировать вопрос или задать другой — может, я найду ответ.' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/editMessageText', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: 'Окей 👌 Попробуй переформулировать вопрос или задать другой — может, я найду ответ.' } }];"
       },
       "id": "response-ticket-declined",
       "name": "Response - Ticket Declined",
@@ -365,7 +365,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '👋 Привет! Я бот поддержки SWAGA.\\n\\nОтвечу на вопросы по VIP, оплате, серверам и правилам. Если не справлюсь — передам твой вопрос живой поддержке.\\n\\nПросто напиши свой вопрос.\\n\\nКоманды:\\n/help — список команд\\n/my_tickets — мои открытые тикеты' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: \"👋 Привет! Я бот поддержки SWAGA.\\n\\nОтвечу на вопросы по VIP, оплате, серверам и правилам. Если не справлюсь — передам твой вопрос живой поддержке.\\n\\nПросто напиши свой вопрос.\\n\\nКоманды:\\n/help — список команд\\n/my_tickets — мои открытые тикеты\" } }];"
       },
       "id": "response-welcome",
       "name": "Response - Welcome",
@@ -600,7 +600,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({ hostname: host, path, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          else resolve(parsed);\n        } catch (e) { reject(e); }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst chatId = $('Route Telegram Update').item.json.chat_id;\nconst fullText = String($('OpenAI Chat Completions').item.json.choices?.[0]?.message?.content || '');\nconst answeredRaw = $('Supabase Insert qa_log - answered').item.json;\nconst qaLogId = Array.isArray(answeredRaw) ? answeredRaw[0]?.id : answeredRaw?.id;\nconst MAX_LEN = 4000;\nif (!fullText) return [{ json: { method: 'sendMessage', chat_id: chatId, text: 'Не удалось сформировать ответ.' } }];\n\nconst chunks = [];\nif (fullText.length <= MAX_LEN) chunks.push(fullText);\nelse {\n  let current = '';\n  for (const paragraph of fullText.split('\\n\\n')) {\n    const merged = current ? (current + '\\n\\n' + paragraph) : paragraph;\n    if (merged.length > MAX_LEN) {\n      if (current) chunks.push(current);\n      if (paragraph.length > MAX_LEN) {\n        for (let i = 0; i < paragraph.length; i += MAX_LEN) chunks.push(paragraph.slice(i, i + MAX_LEN));\n        current = '';\n      } else current = paragraph;\n    } else current = merged;\n  }\n  if (current) chunks.push(current);\n}\n\nfor (let i = 0; i < chunks.length; i += 1) {\n  const payload = { chat_id: chatId, text: chunks[i] };\n  if (i === chunks.length - 1 && qaLogId) {\n    payload.reply_markup = { inline_keyboard: [[ { text: '👍', callback_data: 'fb_yes:' + qaLogId }, { text: '👎', callback_data: 'fb_no:' + qaLogId } ]] };\n  }\n  await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\n}\n\nreturn [{ json: { ok: true, sent_chunks: chunks.length } }];"
+        "jsCode": "const chatId = $('Route Telegram Update').item.json.chat_id;\nconst fullText = String($('OpenAI Chat Completions').item.json.choices?.[0]?.message?.content || '');\nconst raw = $('Supabase Insert qa_log - answered').item.json;\nconst qaLogId = Array.isArray(raw) ? raw[0]?.id : raw?.id;\nconst MAX_LEN = 4000;\nif (!fullText) return [{ json: { method: 'sendMessage', chat_id: chatId, text: 'Не удалось сформировать ответ.' } }];\nconst chunks = [];\nif (fullText.length <= MAX_LEN) chunks.push(fullText);\nelse {\n  let current = '';\n  for (const paragraph of fullText.split('\\n\\n')) {\n    const merged = current ? (current + '\\n\\n' + paragraph) : paragraph;\n    if (merged.length > MAX_LEN) {\n      if (current) chunks.push(current);\n      if (paragraph.length > MAX_LEN) {\n        for (let i = 0; i < paragraph.length; i += MAX_LEN) chunks.push(paragraph.slice(i, i + MAX_LEN));\n        current = '';\n      } else current = paragraph;\n    } else current = merged;\n  }\n  if (current) chunks.push(current);\n}\nreturn chunks.map((text, index) => {\n  const json = { method: 'sendMessage', chat_id: chatId, text };\n  if (index === chunks.length - 1 && qaLogId) {\n    json.reply_markup = { inline_keyboard: [[ { text: '👍', callback_data: 'fb_yes:' + qaLogId }, { text: '👎', callback_data: 'fb_no:' + qaLogId } ]] };\n  }\n  return { json };\n});"
       },
       "id": "response-answer",
       "name": "Response - Answer",
@@ -667,7 +667,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = {\n  chat_id: $('Route Telegram Update').item.json.chat_id,\n  text: 'Передать вопрос поддержке?',\n  reply_markup: { inline_keyboard: [[ { text: 'Да', callback_data: 'support_yes:' + $json.id }, { text: 'Нет', callback_data: 'support_no:' + $json.id } ]] }\n};\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: {\n  method: 'sendMessage',\n  chat_id: $('Route Telegram Update').item.json.chat_id,\n  text: 'Передать вопрос поддержке?',\n  reply_markup: { inline_keyboard: [[ { text: 'Да', callback_data: 'support_yes:' + $json.id }, { text: 'Нет', callback_data: 'support_no:' + $json.id } ]] }\n} }];"
       },
       "id": "response-ticket-confirmation",
       "name": "Response - Ticket Confirmation",
@@ -680,7 +680,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst adminId = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(v => v.trim()).filter(Boolean)[0];\nif (!adminId || !$env.TELEGRAM_ADMIN_BOT_TOKEN) return [{ json: { notification_ok: false, reason: 'admin target is not configured' } }];\nconst ticket = $('Normalize Confirmed Ticket').item.json;\nconst user = $('Route Telegram Update').item.json;\nconst text = 'Новый тикет #' + ticket.id + '\\nПользователь: ' + (user.username ? '@' + user.username : user.user_id) + '\\nВопрос: ' + ticket.question + '\\n\\nОтветить: /reply ' + ticket.id + ' текст ответа';\nconst safeText = text.length > 4090 ? text.slice(0, 4090) + '...' : text;\n\ntry {\n  const data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_ADMIN_BOT_TOKEN + '/sendMessage', { chat_id: adminId, text: safeText }, 5000);\n  return [{ json: { notification_ok: true, message_id: data.result?.message_id } }];\n} catch (error) {\n  return [{ json: { notification_ok: false, error: error.message } }];\n}"
+        "jsCode": "const adminId = String($env.ADMIN_TELEGRAM_IDS || '').split(',').map(v => v.trim()).filter(Boolean)[0];\nconst ticket = $('Normalize Confirmed Ticket').item.json;\nconst user = $('Route Telegram Update').item.json;\nif (!adminId || !$env.TELEGRAM_ADMIN_BOT_TOKEN) {\n  return [{ json: { method: 'sendMessage', chat_id: '0', text: 'admin notification skipped' } }];\n}\nconst text = \"Новый тикет #\" + ticket.id + \"\\nПользователь: \" + (user.username ? '@' + user.username : user.user_id) + \"\\nВопрос: \" + ticket.question + \"\\n\\nОтветить: /reply \" + ticket.id + \" текст ответа\";\nconst safeText = text.length > 4090 ? text.slice(0, 4090) + '...' : text;\nreturn [{ json: { method: 'sendMessage', chat_id: adminId, text: safeText } }];"
       },
       "id": "telegram-notify-admin-new-ticket",
       "name": "Telegram Notify Admin - New Ticket",
@@ -856,7 +856,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({ hostname: host, path, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          else resolve(parsed);\n        } catch (e) { reject(e); }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst chatId = $('Route Telegram Update').item.json.chat_id;\nconst fullText = String($('Normalize Cache Hit').item.json.cached_answer || '');\nconst cachedRaw = $('Supabase Insert qa_log - cached').item.json;\nconst qaLogId = Array.isArray(cachedRaw) ? cachedRaw[0]?.id : cachedRaw?.id;\nconst MAX_LEN = 4000;\nif (!fullText) return [{ json: { method: 'sendMessage', chat_id: chatId, text: 'Не удалось сформировать ответ.' } }];\n\nconst chunks = [];\nif (fullText.length <= MAX_LEN) chunks.push(fullText);\nelse {\n  let current = '';\n  for (const paragraph of fullText.split('\\n\\n')) {\n    const merged = current ? (current + '\\n\\n' + paragraph) : paragraph;\n    if (merged.length > MAX_LEN) {\n      if (current) chunks.push(current);\n      if (paragraph.length > MAX_LEN) {\n        for (let i = 0; i < paragraph.length; i += MAX_LEN) chunks.push(paragraph.slice(i, i + MAX_LEN));\n        current = '';\n      } else current = paragraph;\n    } else current = merged;\n  }\n  if (current) chunks.push(current);\n}\n\nfor (let i = 0; i < chunks.length; i += 1) {\n  const payload = { chat_id: chatId, text: chunks[i] };\n  if (i === chunks.length - 1 && qaLogId) {\n    payload.reply_markup = { inline_keyboard: [[ { text: '👍', callback_data: 'fb_yes:' + qaLogId }, { text: '👎', callback_data: 'fb_no:' + qaLogId } ]] };\n  }\n  await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\n}\n\nreturn [{ json: { ok: true, sent_chunks: chunks.length } }];"
+        "jsCode": "const chatId = $('Route Telegram Update').item.json.chat_id;\nconst fullText = String($('Normalize Cache Hit').item.json.cached_answer || '');\nconst raw = $('Supabase Insert qa_log - cached').item.json;\nconst qaLogId = Array.isArray(raw) ? raw[0]?.id : raw?.id;\nconst MAX_LEN = 4000;\nif (!fullText) return [{ json: { method: 'sendMessage', chat_id: chatId, text: 'Не удалось сформировать ответ.' } }];\nconst chunks = [];\nif (fullText.length <= MAX_LEN) chunks.push(fullText);\nelse {\n  let current = '';\n  for (const paragraph of fullText.split('\\n\\n')) {\n    const merged = current ? (current + '\\n\\n' + paragraph) : paragraph;\n    if (merged.length > MAX_LEN) {\n      if (current) chunks.push(current);\n      if (paragraph.length > MAX_LEN) {\n        for (let i = 0; i < paragraph.length; i += MAX_LEN) chunks.push(paragraph.slice(i, i + MAX_LEN));\n        current = '';\n      } else current = paragraph;\n    } else current = merged;\n  }\n  if (current) chunks.push(current);\n}\nreturn chunks.map((text, index) => {\n  const json = { method: 'sendMessage', chat_id: chatId, text };\n  if (index === chunks.length - 1 && qaLogId) {\n    json.reply_markup = { inline_keyboard: [[ { text: '👍', callback_data: 'fb_yes:' + qaLogId }, { text: '👎', callback_data: 'fb_no:' + qaLogId } ]] };\n  }\n  return { json };\n});"
       },
       "id": "response-answer-cached",
       "name": "Response - Answer (Cached)",
@@ -1026,7 +1026,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '⏳ Слишком много вопросов подряд. Попробуй через минуту.' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '⏳ Слишком много вопросов подряд. Попробуй через минуту.' } }];"
       },
       "id": "response-rate-limited",
       "name": "Response - Rate Limited",
@@ -1071,7 +1071,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: 'Я понимаю только текст 🙂 Напиши свой вопрос словами, и я постараюсь помочь.' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: 'Я понимаю только текст 🙂 Напиши свой вопрос словами, и я постараюсь помочь.' } }];"
       },
       "id": "response-unsupported",
       "name": "Response - Unsupported",
@@ -1116,7 +1116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst payload = { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '📖 Что я умею:\\n\\n• Отвечать на вопросы про VIP, оплату, серверы, правила\\n• Создавать тикеты в поддержку, если сам не знаю ответ\\n• Показывать твои открытые тикеты\\n\\nКоманды:\\n/start — приветствие\\n/help — это сообщение\\n/my_tickets — список твоих открытых тикетов\\n\\nПросто напиши вопрос — я постараюсь помочь.' };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: \"📖 Что я умею:\\n\\n• Отвечать на вопросы про VIP, оплату, серверы, правила\\n• Создавать тикеты в поддержку, если сам не знаю ответ\\n• Показывать твои открытые тикеты\\n\\nКоманды:\\n/start — приветствие\\n/help — это сообщение\\n/my_tickets — список твоих открытых тикетов\\n\\nПросто напиши вопрос — я постараюсь помочь.\" } }];"
       },
       "id": "response-help",
       "name": "Response - Help",
@@ -1191,7 +1191,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst tickets = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(t => t && t.id);\nlet text;\nif (tickets.length === 0) {\n  text = 'У тебя нет открытых тикетов. Напиши вопрос — если не найду ответ, создадим тикет.';\n} else {\n  text = '📋 Твои открытые тикеты:\\n\\n' + tickets.map(t => {\n    const q = String(t.question || '');\n    const shortQ = q.slice(0, 100);\n    const date = new Date(t.created_at).toLocaleDateString('ru-RU');\n    return '#' + t.id + ' от ' + date + '\\n' + shortQ + (q.length > 100 ? '...' : '');\n  }).join('\\n\\n');\n}\nconst payload = { chat_id: $('Route Telegram Update').item.json.chat_id, text };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "const tickets = $input.all().flatMap(i => Array.isArray(i.json) ? i.json : [i.json]).filter(t => t && t.id);\nlet text;\nif (tickets.length === 0) {\n  text = \"У тебя нет открытых тикетов. Напиши вопрос — если не найду ответ, создадим тикет.\";\n} else {\n  text = \"📋 Твои открытые тикеты:\\n\\n\" + tickets.map(t => {\n    const q = String(t.question || '');\n    const shortQ = q.slice(0, 100);\n    const date = new Date(t.created_at).toLocaleDateString('ru-RU');\n    return '#' + t.id + \" от \" + date + \"\\n\" + shortQ + (q.length > 100 ? '...' : '');\n  }).join(\"\\n\\n\");\n}\nreturn [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text } }];"
       },
       "id": "response-my-tickets",
       "name": "Response - My Tickets",
@@ -1277,7 +1277,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst originalText = String($('Route Telegram Update').item.json.callback_message_text || '');\nconst text = originalText ? (originalText + '\\n\\nСпасибо за оценку!') : 'Спасибо за оценку!';\nconst payload = { chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text };\nconst data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/editMessageText', payload, 10000);\nreturn [{ json: { ok: true, message_id: data.result?.message_id } }];"
+        "jsCode": "const originalText = String($('Route Telegram Update').item.json.callback_message_text || '');\nconst text = originalText ? (originalText + \"\\n\\nСпасибо за оценку!\") : \"Спасибо за оценку!\";\nreturn [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text } }];"
       },
       "id": "response-feedback-ack",
       "name": "Response - Feedback Ack",
@@ -1290,7 +1290,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function postJson(host, path, payload, timeoutMs) {\n  const dns = require('dns');\n  try { dns.setDefaultResultOrder('ipv4first'); } catch (error) {}\n  const https = require('https');\n  const body = JSON.stringify(payload);\n  return new Promise((resolve, reject) => {\n    const req = https.request({\n      hostname: host,\n      path,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Content-Length': Buffer.byteLength(body)\n      }\n    }, res => {\n      let data = '';\n      res.on('data', c => data += c);\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data || '{}');\n          if (res.statusCode < 200 || res.statusCode >= 300 || !parsed.ok) {\n            reject(new Error(parsed.description || ('Telegram HTTP ' + res.statusCode)));\n          } else {\n            resolve(parsed);\n          }\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n    req.setTimeout(timeoutMs, () => req.destroy(new Error('Telegram request timeout')));\n    req.on('error', reject);\n    req.write(body);\n    req.end();\n  });\n}\n\nconst chatId = $('Route Telegram Update').item.json.chat_id;\ntry {\n  const data = await postJson('api.telegram.org', '/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage', { chat_id: chatId, text: '⏳ Думаю, ищу ответ...' }, 5000);\n  return [{ json: { processing_message_ok: true, message_id: data.result?.message_id } }];\n} catch (error) {\n  return [{ json: { processing_message_ok: false, error: error.message } }];\n}"
+        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '⏳ Думаю, ищу ответ...' } }];"
       },
       "id": "telegram-send-processing-message",
       "name": "Telegram Send Processing Message",
@@ -1300,6 +1300,396 @@
         2060,
         400
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-welcome",
+      "name": "Send Telegram - Welcome",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        80
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-unsupported",
+      "name": "Send Telegram - Unsupported",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        -20
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-help",
+      "name": "Send Telegram - Help",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        100
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-my-tickets",
+      "name": "Send Telegram - My Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2060,
+        200
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-rate-limited",
+      "name": "Send Telegram - Rate Limited",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        520
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-ticket-confirmation",
+      "name": "Send Telegram - Ticket Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        460
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-ticket-submitted",
+      "name": "Send Telegram - Ticket Submitted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2840,
+        -360
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-ticket-declined",
+      "name": "Send Telegram - Ticket Declined",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        -120
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-feedback-ack",
+      "name": "Send Telegram - Feedback Ack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2060,
+        -20
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-answer",
+      "name": "Send Telegram - Answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3620,
+        120
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-answer-cached",
+      "name": "Send Telegram - Answer Cached",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-processing-message",
+      "name": "Send Telegram - Processing Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        400
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.telegram.org/bot' + $env.TELEGRAM_ADMIN_BOT_TOKEN + '/' + $json.method }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-telegram-admin-new-ticket",
+      "name": "Send Telegram Admin - New Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2580,
+        -360
+      ],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -1574,7 +1964,7 @@
       "main": [
         [
           {
-            "node": "Response - Ticket Submitted",
+            "node": "Send Telegram Admin - New Ticket",
             "type": "main",
             "index": 0
           }
@@ -1804,7 +2194,150 @@
       "main": [
         [
           {
+            "node": "Send Telegram - Processing Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Welcome": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Unsupported": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Unsupported",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Help": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - My Tickets": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - My Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Rate Limited": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Rate Limited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Ticket Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Ticket Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Ticket Submitted": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Ticket Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Ticket Declined": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Ticket Declined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Feedback Ack": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Feedback Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Answer": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response - Answer (Cached)": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram - Answer Cached",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram - Processing Message": {
+      "main": [
+        [
+          {
             "node": "OpenAI Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Admin - New Ticket": {
+      "main": [
+        [
+          {
+            "node": "Response - Ticket Submitted",
             "type": "main",
             "index": 0
           }
