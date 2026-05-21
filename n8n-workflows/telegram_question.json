@@ -234,7 +234,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const text = \"✅ Готово! Тикет #\" + $('Normalize Confirmed Ticket').item.json.id + \" создан.\\n\\nПоддержка ответит прямо здесь, в этом чате. Среднее время ответа — несколько часов.\";\nreturn [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text } }];"
+        "jsCode": "const text = \"Готово ✅\\nСоздал тикет #\" + $('Normalize Confirmed Ticket').item.json.id + \" — передал ваш вопрос в поддержку. Ответят в этом же чате, как только смогут.\";\nreturn [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text, reply_markup: { inline_keyboard: [] } } }];"
       },
       "id": "response-ticket-submitted",
       "name": "Response - Ticket Submitted",
@@ -320,7 +320,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: 'Окей 👌 Попробуй переформулировать вопрос или задать другой — может, я найду ответ.' } }];"
+        "jsCode": "return [{ json: { method: 'editMessageText', chat_id: $('Route Telegram Update').item.json.chat_id, message_id: $('Route Telegram Update').item.json.message_id, text: \"Хорошо, оставим как есть 👌\\nЕсли хотите — переформулируйте вопрос или добавьте деталей, попробую найти ответ ещё раз.\", reply_markup: { inline_keyboard: [] } } }];"
       },
       "id": "response-ticket-declined",
       "name": "Response - Ticket Declined",
@@ -667,7 +667,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  method: 'sendMessage',\n  chat_id: $('Route Telegram Update').item.json.chat_id,\n  text: 'Передать вопрос поддержке?',\n  reply_markup: { inline_keyboard: [[ { text: 'Да', callback_data: 'support_yes:' + $json.id }, { text: 'Нет', callback_data: 'support_no:' + $json.id } ]] }\n} }];"
+        "jsCode": "return [{ json: {\n  method: 'sendMessage',\n  chat_id: $('Route Telegram Update').item.json.chat_id,\n  text: \"Не нашёл точного ответа в базе знаний 🤔\\nПередать ваш вопрос команде поддержки?\",\n  reply_markup: { inline_keyboard: [[ { text: 'Да', callback_data: 'support_yes:' + $json.id }, { text: 'Нет', callback_data: 'support_no:' + $json.id } ]] }\n} }];"
       },
       "id": "response-ticket-confirmation",
       "name": "Response - Ticket Confirmation",
@@ -1290,7 +1290,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { method: 'sendMessage', chat_id: $('Route Telegram Update').item.json.chat_id, text: '⏳ Думаю, ищу ответ...' } }];"
+        "jsCode": "return [{ json: { method: 'sendChatAction', chat_id: $('Route Telegram Update').item.json.chat_id, action: 'typing' } }];"
       },
       "id": "telegram-send-processing-message",
       "name": "Telegram Send Processing Message",
