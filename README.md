@@ -124,11 +124,11 @@ curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK
 curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}"
 ```
 
-Для production лучше добавить `max_connections=10`, чтобы Telegram мог параллельно доставлять несколько updates:
+Для production используйте небольшое `max_connections=2`: для низкой нагрузки этого достаточно, а при сетевой нестабильности Telegram меньше параллелит retry-соединения.
 
 ```bash
-curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/telegram-question&secret_token=${TG_WEBHOOK_SECRET}&max_connections=10"
-curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}&max_connections=10"
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/telegram-question&secret_token=${TG_WEBHOOK_SECRET}&max_connections=2"
+curl "https://api.telegram.org/bot${TELEGRAM_ADMIN_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}webhook/admin-commands&secret_token=${TG_ADMIN_WEBHOOK_SECRET}&max_connections=2"
 ```
 
 Workflow используют HTTP Request для OpenAI и Supabase, поэтому отдельные credentials для них не нужны: ключи читаются из env-переменных контейнера.

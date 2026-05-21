@@ -1318,7 +1318,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-welcome",
@@ -1329,7 +1329,10 @@
         1280,
         80
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1348,7 +1351,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-unsupported",
@@ -1359,7 +1362,10 @@
         1280,
         -20
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1378,7 +1384,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-help",
@@ -1389,7 +1395,10 @@
         1540,
         100
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1408,7 +1417,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-my-tickets",
@@ -1419,7 +1428,10 @@
         2060,
         200
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1438,7 +1450,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-rate-limited",
@@ -1449,7 +1461,10 @@
         2320,
         520
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1468,7 +1483,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-ticket-confirmation",
@@ -1479,7 +1494,10 @@
         3100,
         460
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1498,7 +1516,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-ticket-submitted",
@@ -1509,7 +1527,10 @@
         2840,
         -360
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1528,7 +1549,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-ticket-declined",
@@ -1539,7 +1560,10 @@
         1800,
         -120
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1558,7 +1582,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-feedback-ack",
@@ -1569,7 +1593,10 @@
         2060,
         -20
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1588,7 +1615,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-answer",
@@ -1599,7 +1626,10 @@
         3620,
         120
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1618,7 +1648,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-answer-cached",
@@ -1629,7 +1659,10 @@
         3100,
         0
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -1648,7 +1681,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 3000
         }
       },
       "id": "send-telegram-processing-message",
@@ -1678,7 +1711,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-new-ticket",
@@ -1689,7 +1722,10 @@
         2580,
         -360
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     }
   ],
   "connections": {

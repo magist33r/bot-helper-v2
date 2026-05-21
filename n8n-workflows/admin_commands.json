@@ -711,7 +711,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-direct",
@@ -722,7 +722,10 @@
         1020,
         -180
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -741,7 +744,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-stats",
@@ -752,7 +755,10 @@
         1540,
         20
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -771,7 +777,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-tickets",
@@ -782,7 +788,10 @@
         1800,
         160
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -801,7 +810,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-reload",
@@ -812,7 +821,10 @@
         2580,
         260
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -831,7 +843,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-reply-sent",
@@ -842,7 +854,10 @@
         3100,
         420
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -861,7 +876,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-reply-not-found",
@@ -872,7 +887,10 @@
         2580,
         620
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -891,7 +909,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-feedback-stats",
@@ -902,7 +920,10 @@
         1800,
         220
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -921,7 +942,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ $json }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-admin-ticket-details",
@@ -932,7 +953,10 @@
         2060,
         360
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -951,7 +975,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== 'method')) }}",
         "options": {
-          "timeout": 10000
+          "timeout": 5000
         }
       },
       "id": "send-telegram-main-reply-to-user",
@@ -962,7 +986,10 @@
         2580,
         420
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     }
   ],
   "connections": {
